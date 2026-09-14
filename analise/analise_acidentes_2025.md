@@ -1158,6 +1158,231 @@ A inconsistência deverá ser avaliada na etapa de limpeza.
 
 
 ```python
+df["diferenca_pessoas"] = (
+    df["pessoas"]
+    - (
+        df["mortos"]
+        + df["feridos_leves"]
+        + df["feridos_graves"]
+        + df["ilesos"]
+        + df["ignorados"]
+    )
+)
+
+df.loc[df["diferenca_pessoas"] != 0, "diferenca_pessoas"].value_counts().sort_index()
+```
+
+
+
+
+    diferenca_pessoas
+    -80       1
+    -14       1
+    -13       1
+    -11      11
+    -10       5
+    -9        1
+    -8        9
+    -7       11
+    -6       14
+    -5       61
+    -4       85
+    -3      206
+    -2     1083
+    -1     2334
+    Name: count, dtype: int64
+
+
+
+A diferença é sempre negativa, ou seja, nesses registros a soma das categorias de pessoas é maior que o valor informado em pessoas.
+
+📊 O que isso nos mostra?
+
+Dos 3.823 registros inconsistentes:
+
+2.334 têm diferença de apenas 1 pessoa.
+1.083 têm diferença de 2 pessoas.
+Os demais apresentam diferenças maiores.
+Existe 1 registro com diferença de -80, um caso extremamente discrepante.
+
+Portanto, não parece ser simplesmente um pequeno erro isolado.
+
+E tem uma pista interessante: lembra daquele acidente com 82 veículos e apenas 2 pessoas? Pois aqui aparece uma diferença de -80. 👀
+
+Isso provavelmente está relacionado ao mesmo registro.
+
+Essa coluna diferenca_pessoas foi criada apenas para investigação.
+
+
+```python
+df.loc[df["diferenca_pessoas"] == -80, [
+    "id",
+    "tipo_acidente",
+    "pessoas",
+    "mortos",
+    "feridos_leves",
+    "feridos_graves",
+    "ilesos",
+    "ignorados",
+    "veiculos"
+]]
+```
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>id</th>
+      <th>tipo_acidente</th>
+      <th>pessoas</th>
+      <th>mortos</th>
+      <th>feridos_leves</th>
+      <th>feridos_graves</th>
+      <th>ilesos</th>
+      <th>ignorados</th>
+      <th>veiculos</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>10260</th>
+      <td>707992</td>
+      <td>Incêndio</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>1</td>
+      <td>81</td>
+      <td>82</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+🎯 Agora encontramos a origem daquela diferença de -80.
+
+O registro é o mesmo que já tínhamos identificado como extremo:
+
+| Campo            |    Valor |
+| ---------------- | -------: |
+| `id`             |   707992 |
+| `tipo_acidente`  | Incêndio |
+| `pessoas`        |        2 |
+| `mortos`         |        0 |
+| `feridos_leves`  |        0 |
+| `feridos_graves` |        0 |
+| `ilesos`         |        1 |
+| `ignorados`      |       81 |
+| `veiculos`       |       82 |
+
+A soma das categorias de pessoas é:
+
+0 + 0 + 0 + 1 + 81 = 82
+
+Mas a coluna pessoas informa 2.
+
+Então:
+
+2 - 82 = -80
+
+🔎 O que isso revela?
+
+Temos um registro em que existe uma inconsistência muito grande entre pessoas e as categorias de pessoas.
+
+E é interessante porque o mesmo acidente também possui o maior número de veículos da base, 82.
+
+Isso sugere que pode haver alguma particularidade na forma como esse registro foi preenchido ou contabilizado. Não devemos concluir que é erro sem investigar a regra da fonte.
+
+
+```python
+(
+    df.loc[df["diferenca_pessoas"] != 0, "ignorados"] > 0
+).sum()
+```
+
+
+
+
+    np.int64(3823)
+
+
+
+🎯 O resultado foi 3.823, exatamente o total de registros inconsistentes.
+
+Isso revela uma pista muito forte:
+
+Todos os 3.823 registros em que pessoas não corresponde à soma das categorias possuem pelo menos uma pessoa na categoria ignorados.
+
+Isso pode explicar as diferenças, porque ignorados representa pessoas cuja situação não foi informada. Portanto, não podemos simplesmente considerar esses 3.823 registros como erros. Precisamos entender a regra da base antes de qualquer correção.
+
+📌 Diagnóstico até aqui
+Foram identificados 3.823 registros em que o número de pessoas não corresponde à soma de mortos, feridos_leves, feridos_graves, ilesos e ignorados. Em todos esses registros há pelo menos uma pessoa classificada como ignorados. O maior desvio encontrado foi de 80 pessoas, em um registro com 82 veículos. Dessa forma, os casos devem ser investigados antes de qualquer tratamento.
+
+
+```python
+df["ignorados"].describe()
+```
+
+
+
+
+    count    72529.000000
+    mean         0.394739
+    std          0.860584
+    min          0.000000
+    25%          0.000000
+    50%          0.000000
+    75%          1.000000
+    max         81.000000
+    Name: ignorados, dtype: float64
+
+
+
+👍 Esse resultado fecha bem essa investigação.
+
+👥 Coluna ignorados
+
+Temos:
+
+Mínimo: 0
+Mediana: 0
+75% dos acidentes: têm até 1 pessoa ignorada
+Média: 0,39
+Máximo: 81 pessoas ignoradas
+
+E aquele registro extremo que encontramos tem justamente 81 ignorados.
+
+📌 Conclusão do diagnóstico
+
+Temos uma relação clara:
+
+Os 3.823 registros em que pessoas não corresponde à soma das categorias apresentam pessoas classificadas como ignorados. A maior diferença ocorre no registro 707992, que possui 81 pessoas ignoradas, 82 veículos e apenas 2 pessoas registradas na coluna pessoas.
+
+Isso é um achado de qualidade de dados, não necessariamente um erro. A pessoa 2 deverá investigar a regra de preenchimento da base antes de decidir qualquer tratamento.
+
+
+
+```python
 (df["feridos"] != df["feridos_leves"] + df["feridos_graves"]).sum()
 ```
 
@@ -1854,3 +2079,1204 @@ Uma inconsistência entre pessoas e a soma das categorias de pessoas em 3.823 re
 Um valor extremo de 82 veículos, entre outros 66 acidentes com mais de 10 veículos.
 
 Uma classificação de acidente ausente em 1 registro, justamente em um acidente com 1 morto.
+
+
+```python
+df.loc[
+    df["tipo_acidente"] == "Incêndio",
+    "veiculos"
+].describe()
+```
+
+
+
+
+    count    1771.000000
+    mean        1.604743
+    std         2.206221
+    min         1.000000
+    25%         1.000000
+    50%         1.000000
+    75%         2.000000
+    max        82.000000
+    Name: veiculos, dtype: float64
+
+
+
+| Estatística |  Valor | O que significa                                   |
+| ----------- | -----: | ------------------------------------------------- |
+| `count`     |  1.771 | Há 1.771 registros considerados nessa análise     |
+| `mean`      |   1,60 | Média de aproximadamente 1,6 veículo por acidente |
+| `std`       |   2,21 | Existe bastante dispersão                         |
+| `min`       |      1 | O mínimo é 1 veículo                              |
+| `25%`       |      1 | 25% dos acidentes têm 1 veículo                   |
+| `50%`       |      1 | A mediana é 1 veículo                             |
+| `75%`       |      2 | 75% têm até 2 veículos                            |
+| `max`       | **82** | Um registro apresenta **82 veículos**             |
+
+🚨 O ponto importante
+
+O 82 chama bastante atenção.
+
+Veja a diferença:
+
+Mediana: 1
+75% dos registros: até 2
+Média: 1,60
+Máximo: 82
+
+Isso sugere que 82 pode ser um possível outlier.
+
+
+```python
+df[df['veiculos'] == 82][
+    ['id', 'data_inversa', 'uf', 'municipio', 'veiculos', 'pessoas', 'mortos',
+     'feridos', 'latitude', 'longitude']
+]
+```
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>id</th>
+      <th>data_inversa</th>
+      <th>uf</th>
+      <th>municipio</th>
+      <th>veiculos</th>
+      <th>pessoas</th>
+      <th>mortos</th>
+      <th>feridos</th>
+      <th>latitude</th>
+      <th>longitude</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>10260</th>
+      <td>707992</td>
+      <td>2025-07-07</td>
+      <td>GO</td>
+      <td>PADRE BERNARDO</td>
+      <td>82</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+      <td>-15,17278873</td>
+      <td>-48,39040339</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+O registro 707992 realmente apresenta uma inconsistência forte:
+
+Veículos: 82
+Pessoas: 2
+Mortos: 0
+Feridos: 0
+Município: Padre Bernardo/GO
+Data: 07/07/2025
+🚨 Por que esse registro merece ser sinalizado?
+
+Se um acidente possui 82 veículos, seria esperado encontrar um número de pessoas muito maior que 2, porque a própria coluna pessoas representa as pessoas envolvidas no acidente.
+
+Ter 82 veículos e somente 2 pessoas é extremamente improvável e indica uma possível inconsistência no dado.
+
+Além disso, a mediana de veiculos é 1 e 75% dos registros possuem no máximo 2 veículos. Portanto, o valor 82 está muito distante do comportamento normal da coluna.
+
+
+```python
+Q1 = df['veiculos'].quantile(0.25)
+Q3 = df['veiculos'].quantile(0.75)
+
+IQR = Q3 - Q1
+
+limite_inferior = Q1 - 1.5 * IQR
+limite_superior = Q3 + 1.5 * IQR
+
+Q1, Q3, IQR, limite_inferior, limite_superior
+```
+
+
+
+
+    (np.float64(1.0),
+     np.float64(2.0),
+     np.float64(1.0),
+     np.float64(-0.5),
+     np.float64(3.5))
+
+
+
+Encontramos:
+
+Q1 = 1
+Q3 = 2
+IQR = 1
+Limite inferior = -0,5
+Limite superior = 3,5
+Então, qual é a conclusão?
+
+Pelo método IQR, todo registro com:
+
+veiculos > 3,5, ou seja, 4 veículos ou mais, é considerado um outlier estatístico.
+
+Agora precisamos saber quantos registros são outliers e, principalmente, em qual grupo de comparação eles devem ser avaliados.
+
+
+```python
+outliers_veiculos = df[df['veiculos'] > limite_superior]
+
+len(outliers_veiculos)
+
+```
+
+
+
+
+    5219
+
+
+
+Se fizermos IQR na base inteira, estamos comparando acidentes muito diferentes entre si. Precisamos fazer a análise por grupo.
+
+Primeiro, vamos descobrir quais grupos fazem sentido
+
+Para veiculos, eu sugiro inicialmente verificar a distribuição por tipo_acidente ou classificacao_acidente. Mas não quero escolher arbitrariamente, porque isso precisa estar de acordo com a lógica do projeto.
+
+Análise inicial: aplicação do método IQR global identificou 5.219 possíveis outliers na variável veiculos. Entretanto, essa identificação não é suficiente para determinar anomalias, pois os acidentes devem ser comparados dentro de grupos homogêneos. Será realizada análise estratificada pelo grupo de comparação definido para a variável.
+
+
+```python
+df['tipo_acidente'].value_counts()
+```
+
+
+
+
+    tipo_acidente
+    Colisão traseira                  14360
+    Saída de leito carroçável         10209
+    Colisão transversal                9306
+    Colisão lateral mesmo sentido      7885
+    Tombamento                         6351
+    Colisão com objeto                 5109
+    Colisão frontal                    4739
+    Queda de ocupante de veículo       3450
+    Atropelamento de Pedestre          3057
+    Colisão lateral sentido oposto     2152
+    Incêndio                           1771
+    Capotamento                        1373
+    Engavetamento                      1233
+    Atropelamento de Animal            1133
+    Eventos atípicos                    287
+    Derramamento de carga               107
+    Sinistro pessoal de trânsito          7
+    Name: count, dtype: int64
+
+
+
+
+```python
+df['classificacao_acidente'].value_counts()
+```
+
+
+
+
+    classificacao_acidente
+    Com Vítimas Feridas    56181
+    Sem Vítimas            11138
+    Com Vítimas Fatais      5209
+    Name: count, dtype: int64
+
+
+
+O agrupamento mais coerente entre essas duas opções é tipo_acidente, porque estamos comparando acidentes do mesmo tipo. Por exemplo, uma colisão traseira pode naturalmente ter uma distribuição de veículos diferente de um atropelamento ou de um incêndio.
+
+Então vamos fazer o IQR por tipo_acidente
+
+
+```python
+def identificar_outliers(grupo):
+    Q1 = grupo['veiculos'].quantile(0.25)
+    Q3 = grupo['veiculos'].quantile(0.75)
+    IQR = Q3 - Q1
+
+    limite_superior = Q3 + 1.5 * IQR
+
+    return grupo[
+        (grupo['veiculos'] < Q1 - 1.5 * IQR) |
+        (grupo['veiculos'] > limite_superior)
+    ]
+
+outliers_por_tipo = (
+    df.groupby('tipo_acidente', group_keys=False)
+      .apply(identificar_outliers)
+)
+```
+
+    C:\Users\amali\AppData\Local\Temp\ipykernel_14972\2878775826.py:15: FutureWarning: DataFrameGroupBy.apply operated on the grouping columns. This behavior is deprecated, and in a future version of pandas the grouping columns will be excluded from the operation. Either pass `include_groups=False` to exclude the groupings or explicitly select the grouping columns after groupby to silence this warning.
+      .apply(identificar_outliers)
+    
+
+
+```python
+len(outliers_por_tipo)
+```
+
+
+
+
+    7452
+
+
+
+
+```python
+outliers_por_tipo[outliers_por_tipo['id'] == 707992]
+```
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>id</th>
+      <th>data_inversa</th>
+      <th>dia_semana</th>
+      <th>horario</th>
+      <th>uf</th>
+      <th>br</th>
+      <th>km</th>
+      <th>municipio</th>
+      <th>causa_acidente</th>
+      <th>tipo_acidente</th>
+      <th>...</th>
+      <th>ilesos</th>
+      <th>ignorados</th>
+      <th>feridos</th>
+      <th>veiculos</th>
+      <th>latitude</th>
+      <th>longitude</th>
+      <th>regional</th>
+      <th>delegacia</th>
+      <th>uop</th>
+      <th>diferenca_pessoas</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>10260</th>
+      <td>707992</td>
+      <td>2025-07-07</td>
+      <td>segunda-feira</td>
+      <td>07:30:00</td>
+      <td>GO</td>
+      <td>80</td>
+      <td>62,9</td>
+      <td>PADRE BERNARDO</td>
+      <td>Demais falhas mecânicas ou elétricas</td>
+      <td>Incêndio</td>
+      <td>...</td>
+      <td>1</td>
+      <td>81</td>
+      <td>0</td>
+      <td>82</td>
+      <td>-15,17278873</td>
+      <td>-48,39040339</td>
+      <td>SPRF-DF</td>
+      <td>DEL03-DF</td>
+      <td>UOP02-DEL03-DF</td>
+      <td>-80</td>
+    </tr>
+  </tbody>
+</table>
+<p>1 rows × 31 columns</p>
+</div>
+
+
+
+
+```python
+df[df['id'] == 707992][
+    ['id', 'tipo_acidente', 'classificacao_acidente',
+     'veiculos', 'pessoas', 'mortos', 'feridos']
+]
+```
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>id</th>
+      <th>tipo_acidente</th>
+      <th>classificacao_acidente</th>
+      <th>veiculos</th>
+      <th>pessoas</th>
+      <th>mortos</th>
+      <th>feridos</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>10260</th>
+      <td>707992</td>
+      <td>Incêndio</td>
+      <td>Sem Vítimas</td>
+      <td>82</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+O registro 707992 é:
+
+tipo_acidente: Incêndio
+classificacao_acidente: Sem Vítimas
+veiculos: 82
+pessoas: 2
+mortos: 0
+feridos: 0
+
+E isso muda um pouco a nossa análise.
+
+O grupo correto
+
+Para avaliar veiculos, podemos comparar o registro com outros acidentes do mesmo tipo_acidente, neste caso:
+
+Incêndio
+
+Isso é mais adequado do que comparar os 82 veículos com todos os 72 mil acidentes, porque tipos de acidente diferentes podem ter comportamentos muito diferentes.
+
+Agora precisamos calcular o IQR somente para tipo_acidente = 'Incêndio'.
+
+
+```python
+df_incendio = df[df['tipo_acidente'] == 'Incêndio']
+
+Q1_incendio = df_incendio['veiculos'].quantile(0.25)
+Q3_incendio = df_incendio['veiculos'].quantile(0.75)
+
+IQR_incendio = Q3_incendio - Q1_incendio
+
+limite_superior_incendio = Q3_incendio + 1.5 * IQR_incendio
+
+Q1_incendio, Q3_incendio, IQR_incendio, limite_superior_incendio
+```
+
+
+
+
+    (np.float64(1.0), np.float64(2.0), np.float64(1.0), np.float64(3.5))
+
+
+
+
+```python
+outliers_incendio = df_incendio[
+    df_incendio['veiculos'] > limite_superior_incendio
+]
+
+len(outliers_incendio)
+```
+
+
+
+
+    85
+
+
+
+
+```python
+outliers_incendio[
+    ['id', 'data_inversa', 'uf', 'municipio',
+     'veiculos', 'pessoas', 'mortos', 'feridos']
+].sort_values('veiculos', ascending=False)
+```
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>id</th>
+      <th>data_inversa</th>
+      <th>uf</th>
+      <th>municipio</th>
+      <th>veiculos</th>
+      <th>pessoas</th>
+      <th>mortos</th>
+      <th>feridos</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>10260</th>
+      <td>707992</td>
+      <td>2025-07-07</td>
+      <td>GO</td>
+      <td>PADRE BERNARDO</td>
+      <td>82</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>4945</th>
+      <td>685337</td>
+      <td>2025-04-12</td>
+      <td>MT</td>
+      <td>NOBRES</td>
+      <td>15</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>5926</th>
+      <td>689744</td>
+      <td>2025-05-08</td>
+      <td>BA</td>
+      <td>ITATIM</td>
+      <td>13</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>6789</th>
+      <td>693721</td>
+      <td>2025-05-25</td>
+      <td>BA</td>
+      <td>PONTO NOVO</td>
+      <td>13</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>9805</th>
+      <td>706211</td>
+      <td>2025-07-21</td>
+      <td>PE</td>
+      <td>CABROBO</td>
+      <td>13</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>16645</th>
+      <td>734589</td>
+      <td>2025-11-26</td>
+      <td>MS</td>
+      <td>BATAGUASSU</td>
+      <td>4</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>17270</th>
+      <td>737345</td>
+      <td>2025-12-08</td>
+      <td>MA</td>
+      <td>IMPERATRIZ</td>
+      <td>4</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>17902</th>
+      <td>739860</td>
+      <td>2025-12-18</td>
+      <td>GO</td>
+      <td>PIRENOPOLIS</td>
+      <td>4</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>17935</th>
+      <td>739980</td>
+      <td>2025-12-19</td>
+      <td>RS</td>
+      <td>CACAPAVA DO SUL</td>
+      <td>4</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>18385</th>
+      <td>742510</td>
+      <td>2025-12-30</td>
+      <td>BA</td>
+      <td>CORRENTINA</td>
+      <td>4</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+  </tbody>
+</table>
+<p>85 rows × 8 columns</p>
+</div>
+
+
+
+🎯 Agora temos a confirmação estatística.
+
+Para o grupo tipo_acidente = Incêndio:
+
+Q1 = 1
+Q3 = 2
+IQR = 1
+Limite superior = 3,5
+
+Portanto:
+
+Para acidentes classificados como Incêndio, valores de veiculos > 3,5, ou seja, 4 veículos ou mais, são considerados outliers pelo método IQR.
+
+E o registro 707992 tem 82 veículos.
+
+Conclusão do diagnóstico
+
+O ID 707992 é, portanto, um outlier estatístico dentro do próprio grupo de comparação correto (tipo_acidente = Incêndio).
+
+Isso é bem mais forte do que a nossa primeira análise global. Não estamos dizendo apenas que 82 é muito alto comparado à base inteira. Ele também é muito alto entre os próprios acidentes do tipo Incêndio.
+
+⚠️ Uma distinção importante
+
+Nós podemos afirmar:
+
+ID 707992 é um outlier estatístico.
+
+Mas ainda não podemos afirmar que o dado está errado.
+
+Isso porque outlier ≠ erro de preenchimento.
+
+No entanto, esse caso merece atenção especial porque temos:
+
+82 veículos × 2 pessoas × 0 mortos × 0 feridos
+
+Esse conjunto de informações é uma possível inconsistência, além de ser um outlier estatístico.
+
+Outliers na variável veiculos: foi utilizado o método do Intervalo Interquartil (IQR), aplicado dentro do grupo de comparação tipo_acidente. Para os acidentes classificados como Incêndio, foram obtidos Q1 = 1, Q3 = 2 e IQR = 1, resultando em limite superior de 3,5 veículos. Assim, registros com 4 ou mais veículos foram classificados como outliers, totalizando 85 registros nesse grupo. Entre eles, destaca-se o registro de ID 707992, que apresenta 82 veículos, 2 pessoas, 0 mortos e 0 feridos. O registro deve ser investigado como possível inconsistência.
+
+
+```python
+def calcular_limites(grupo):
+    Q1 = grupo['veiculos'].quantile(0.25)
+    Q3 = grupo['veiculos'].quantile(0.75)
+    IQR = Q3 - Q1
+
+    limite_inferior = Q1 - 1.5 * IQR
+    limite_superior = Q3 + 1.5 * IQR
+
+    return pd.Series({
+        'Q1': Q1,
+        'Q3': Q3,
+        'IQR': IQR,
+        'limite_inferior': limite_inferior,
+        'limite_superior': limite_superior
+    })
+
+limites_por_tipo = df.groupby('tipo_acidente').apply(calcular_limites)
+
+limites_por_tipo
+```
+
+    C:\Users\amali\AppData\Local\Temp\ipykernel_14972\3095996379.py:17: FutureWarning: DataFrameGroupBy.apply operated on the grouping columns. This behavior is deprecated, and in a future version of pandas the grouping columns will be excluded from the operation. Either pass `include_groups=False` to exclude the groupings or explicitly select the grouping columns after groupby to silence this warning.
+      limites_por_tipo = df.groupby('tipo_acidente').apply(calcular_limites)
+    
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Q1</th>
+      <th>Q3</th>
+      <th>IQR</th>
+      <th>limite_inferior</th>
+      <th>limite_superior</th>
+    </tr>
+    <tr>
+      <th>tipo_acidente</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>Atropelamento de Animal</th>
+      <td>1.0</td>
+      <td>1.0</td>
+      <td>0.0</td>
+      <td>1.00</td>
+      <td>1.00</td>
+    </tr>
+    <tr>
+      <th>Atropelamento de Pedestre</th>
+      <td>2.0</td>
+      <td>2.0</td>
+      <td>0.0</td>
+      <td>2.00</td>
+      <td>2.00</td>
+    </tr>
+    <tr>
+      <th>Capotamento</th>
+      <td>1.0</td>
+      <td>1.0</td>
+      <td>0.0</td>
+      <td>1.00</td>
+      <td>1.00</td>
+    </tr>
+    <tr>
+      <th>Colisão com objeto</th>
+      <td>1.0</td>
+      <td>1.0</td>
+      <td>0.0</td>
+      <td>1.00</td>
+      <td>1.00</td>
+    </tr>
+    <tr>
+      <th>Colisão frontal</th>
+      <td>2.0</td>
+      <td>3.0</td>
+      <td>1.0</td>
+      <td>0.50</td>
+      <td>4.50</td>
+    </tr>
+    <tr>
+      <th>Colisão lateral mesmo sentido</th>
+      <td>2.0</td>
+      <td>3.0</td>
+      <td>1.0</td>
+      <td>0.50</td>
+      <td>4.50</td>
+    </tr>
+    <tr>
+      <th>Colisão lateral sentido oposto</th>
+      <td>2.0</td>
+      <td>4.0</td>
+      <td>2.0</td>
+      <td>-1.00</td>
+      <td>7.00</td>
+    </tr>
+    <tr>
+      <th>Colisão transversal</th>
+      <td>2.0</td>
+      <td>2.0</td>
+      <td>0.0</td>
+      <td>2.00</td>
+      <td>2.00</td>
+    </tr>
+    <tr>
+      <th>Colisão traseira</th>
+      <td>2.0</td>
+      <td>3.0</td>
+      <td>1.0</td>
+      <td>0.50</td>
+      <td>4.50</td>
+    </tr>
+    <tr>
+      <th>Derramamento de carga</th>
+      <td>2.0</td>
+      <td>3.0</td>
+      <td>1.0</td>
+      <td>0.50</td>
+      <td>4.50</td>
+    </tr>
+    <tr>
+      <th>Engavetamento</th>
+      <td>3.0</td>
+      <td>4.0</td>
+      <td>1.0</td>
+      <td>1.50</td>
+      <td>5.50</td>
+    </tr>
+    <tr>
+      <th>Eventos atípicos</th>
+      <td>1.0</td>
+      <td>2.0</td>
+      <td>1.0</td>
+      <td>-0.50</td>
+      <td>3.50</td>
+    </tr>
+    <tr>
+      <th>Incêndio</th>
+      <td>1.0</td>
+      <td>2.0</td>
+      <td>1.0</td>
+      <td>-0.50</td>
+      <td>3.50</td>
+    </tr>
+    <tr>
+      <th>Queda de ocupante de veículo</th>
+      <td>1.0</td>
+      <td>1.0</td>
+      <td>0.0</td>
+      <td>1.00</td>
+      <td>1.00</td>
+    </tr>
+    <tr>
+      <th>Saída de leito carroçável</th>
+      <td>1.0</td>
+      <td>1.0</td>
+      <td>0.0</td>
+      <td>1.00</td>
+      <td>1.00</td>
+    </tr>
+    <tr>
+      <th>Sinistro pessoal de trânsito</th>
+      <td>1.0</td>
+      <td>1.5</td>
+      <td>0.5</td>
+      <td>0.25</td>
+      <td>2.25</td>
+    </tr>
+    <tr>
+      <th>Tombamento</th>
+      <td>1.0</td>
+      <td>2.0</td>
+      <td>1.0</td>
+      <td>-0.50</td>
+      <td>3.50</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+
+```python
+# Identifica os outliers de veículos dentro de cada tipo de acidente
+
+df_out = df.merge(
+    limites_por_tipo[['limite_inferior', 'limite_superior']],
+    left_on='tipo_acidente',
+    right_index=True,
+    how='left'
+)
+
+df_out['outlier_veiculos'] = (
+    (df_out['veiculos'] < df_out['limite_inferior']) |
+    (df_out['veiculos'] > df_out['limite_superior'])
+)
+
+df_out['outlier_veiculos'].value_counts()
+```
+
+
+
+
+    outlier_veiculos
+    False    65077
+    True      7452
+    Name: count, dtype: int64
+
+
+
+
+```python
+df_out[df_out['outlier_veiculos']][
+    ['id', 'tipo_acidente', 'veiculos',
+     'pessoas', 'mortos', 'feridos']
+].sort_values('veiculos', ascending=False).head(20)
+```
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>id</th>
+      <th>tipo_acidente</th>
+      <th>veiculos</th>
+      <th>pessoas</th>
+      <th>mortos</th>
+      <th>feridos</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>10260</th>
+      <td>707992</td>
+      <td>Incêndio</td>
+      <td>82</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>18547</th>
+      <td>748976</td>
+      <td>Colisão com objeto</td>
+      <td>31</td>
+      <td>33</td>
+      <td>0</td>
+      <td>8</td>
+    </tr>
+    <tr>
+      <th>9474</th>
+      <td>704931</td>
+      <td>Colisão frontal</td>
+      <td>21</td>
+      <td>11</td>
+      <td>1</td>
+      <td>8</td>
+    </tr>
+    <tr>
+      <th>4193</th>
+      <td>670979</td>
+      <td>Colisão lateral mesmo sentido</td>
+      <td>18</td>
+      <td>8</td>
+      <td>1</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <th>62630</th>
+      <td>729013</td>
+      <td>Colisão traseira</td>
+      <td>18</td>
+      <td>19</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>11831</th>
+      <td>714599</td>
+      <td>Engavetamento</td>
+      <td>17</td>
+      <td>15</td>
+      <td>0</td>
+      <td>3</td>
+    </tr>
+    <tr>
+      <th>5492</th>
+      <td>687933</td>
+      <td>Engavetamento</td>
+      <td>16</td>
+      <td>11</td>
+      <td>1</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <th>7738</th>
+      <td>697678</td>
+      <td>Engavetamento</td>
+      <td>15</td>
+      <td>17</td>
+      <td>1</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <th>4945</th>
+      <td>685337</td>
+      <td>Incêndio</td>
+      <td>15</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>7469</th>
+      <td>696512</td>
+      <td>Colisão transversal</td>
+      <td>14</td>
+      <td>3</td>
+      <td>0</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <th>12728</th>
+      <td>718500</td>
+      <td>Saída de leito carroçável</td>
+      <td>14</td>
+      <td>3</td>
+      <td>0</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <th>9585</th>
+      <td>705324</td>
+      <td>Colisão frontal</td>
+      <td>14</td>
+      <td>4</td>
+      <td>0</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <th>14509</th>
+      <td>725849</td>
+      <td>Colisão traseira</td>
+      <td>14</td>
+      <td>4</td>
+      <td>0</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <th>13923</th>
+      <td>723498</td>
+      <td>Engavetamento</td>
+      <td>14</td>
+      <td>11</td>
+      <td>1</td>
+      <td>6</td>
+    </tr>
+    <tr>
+      <th>12455</th>
+      <td>717295</td>
+      <td>Engavetamento</td>
+      <td>13</td>
+      <td>9</td>
+      <td>0</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <th>10158</th>
+      <td>707474</td>
+      <td>Tombamento</td>
+      <td>13</td>
+      <td>7</td>
+      <td>1</td>
+      <td>3</td>
+    </tr>
+    <tr>
+      <th>9043</th>
+      <td>703139</td>
+      <td>Incêndio</td>
+      <td>13</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>11344</th>
+      <td>712651</td>
+      <td>Engavetamento</td>
+      <td>13</td>
+      <td>7</td>
+      <td>0</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <th>9805</th>
+      <td>706211</td>
+      <td>Incêndio</td>
+      <td>13</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>10560</th>
+      <td>709276</td>
+      <td>Incêndio</td>
+      <td>13</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+
+```python
+df[df['tipo_acidente'] == 'Incêndio']['veiculos'].value_counts().sort_index()
+```
+
+
+
+
+    veiculos
+    1     1162
+    2      378
+    3      146
+    4       74
+    5        1
+    6        1
+    7        1
+    10       1
+    13       5
+    15       1
+    82       1
+    Name: count, dtype: int64
+
+
+
+
+```python
+df[df['tipo_acidente'] == 'Incêndio']['veiculos'].describe()
+```
+
+
+
+
+    count    1771.000000
+    mean        1.604743
+    std         2.206221
+    min         1.000000
+    25%         1.000000
+    50%         1.000000
+    75%         2.000000
+    max        82.000000
+    Name: veiculos, dtype: float64
+
+
+
+O registro 707992 foi identificado como um outlier estatístico na variável veiculos, considerando o grupo tipo_acidente = Incêndio. O valor de 82 veículos apresenta forte discrepância em relação aos demais registros desse grupo e também em relação ao número de pessoas envolvidas. O registro deve ser investigado antes de qualquer tratamento ou exclusão.
+
+### Diagnóstico de outliers na variável `veiculos`
+
+Para identificar valores atípicos na quantidade de veículos envolvidos, foi utilizado o método do Intervalo Interquartil (IQR), considerando `tipo_acidente` como grupo de comparação. Essa abordagem evita comparar diretamente acidentes de naturezas diferentes.
+
+No grupo `Incêndio`, foram encontrados Q1 = 1 e Q3 = 2, resultando em IQR = 1 e limite superior de 3,5 veículos. Dessa forma, registros com mais de 3,5 veículos foram classificados como outliers nesse grupo.
+
+A distribuição dos 1.771 registros de incêndio mostra forte concentração entre 1 e 4 veículos. O maior valor encontrado é 82 veículos, registrado no acidente de ID 707992. Esse registro apresenta uma discrepância particularmente elevada, pois informa 82 veículos, mas apenas 2 pessoas envolvidas, sem mortos ou feridos.
+
+O registro 707992 foi, portanto, identificado como um outlier estatístico e um caso prioritário para investigação da qualidade dos dados. Neste momento, o registro não foi excluído ou alterado, pois a identificação de um outlier não implica necessariamente erro no dado.
+
+
+Método utilizado: IQR
+
+Grupo de comparação: tipo_acidente
+
+Quantidade encontrada: 7.452 registros
+
+Percentual: aproximadamente 10,3%
+
+Caso extremo destacado: ID 707992
+
+Justificativa para investigação: 82 veículos × apenas 2 pessoas
