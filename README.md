@@ -28,6 +28,9 @@ Fonte oficial:
 
 https://www.gov.br/prf/pt-br/acesso-a-informacao/dados-abertos/dados-abertos-da-prf
 
+Download direto da base 2025: https://drive.google.com/file/d/1-G3MdmHBt6CprDwcW99xxC4BZ2DU5ryR/view?usp=sharing/download
+- Salve o arquivo descompactado como `datatrans2025.csv` dentro da pasta `dados/`. 
+
 
 
 Arquivo utilizado na análise:
