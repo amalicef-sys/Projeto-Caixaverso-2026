@@ -76,7 +76,7 @@ DIAGNÓSTICO:
 
 Dimensões: a base possui 72.529 registros e 30 variáveis.
 
-Tipos de dados: foram identificadas 10 variáveis do tipo int64, 3 do tipo float64 e 17 do tipo object. Os tipos numéricos estão adequados para as variáveis de contagem e localização. As variáveis textuais estão armazenadas como object, incluindo campos que representam datas, horários e categorias, os quais serão avaliados posteriormente durante a etapa de limpeza.
+Tipos de dados: foram identificadas inicialmente 10 variáveis do tipo int64, 20 do tipo object. Os tipos numéricos estão adequados para as variáveis de contagem e localização. As variáveis textuais estão armazenadas como object, incluindo campos que representam datas, horários e categorias, os quais serão avaliados posteriormente durante a etapa de limpeza.
 
 Uso da memória: a base ocupa aproximadamente 92,7 MB quando carregada com a configuração original (sep=";", encoding="latin1" e low_memory=False). As variáveis km, latitude e longitude são inicialmente interpretadas como object, devido ao formato dos valores decimais, contribuindo para um maior consumo de memória.
 
