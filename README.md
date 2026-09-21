@@ -88,3 +88,17 @@ Categorias inconsistentes: foram encontradas 3.823 ocorrências em que o total d
 
 Outliers na variável veiculos: foi utilizado o método do Intervalo Interquartil (IQR), aplicado dentro do grupo de comparação tipo_acidente. Para os acidentes classificados como Incêndio, foram obtidos Q1 = 1, Q3 = 2 e IQR = 1, resultando em limite superior de 3,5 veículos. Assim, registros com 4 ou mais veículos foram classificados como outliers, totalizando 85 registros nesse grupo. Entre eles, destaca-se o registro de ID 707992, que apresenta 82 veículos, 2 pessoas, 0 mortos e 0 feridos. O registro deve ser investigado como possível inconsistência.
 
+
+LIMPEZA E TRATAMENTO:
+
+Tratamento e tipagem: substituição de vírgula por ponto nas colunas km, latitude e longitude para conversão de string para float64, e  data_inversa de string para datetime64.
+
+Tratamento de dados faltantes: imputação via .loc na coluna classificacao_acidente do registro ID 652519 como "Com Vítimas Fatais", seguindo a regra oficial do manual da PRF (mortos = 1).
+
+Auditoria de integridade e outliers: comprovação via código de que 100% das divergências da coluna pessoas eram ocupantes ignorados pela PRF. Investigação do outlier atípico do ID 707992 (82 veículos em incêndio real), mantendo 100% dos 72.529 registros sem nenhuma exclusão.
+
+Engenharia de features e transformações: criação das variáveis faixa_horaria, final_de_semana, mes, indice_gravidade, adição da coluna regiao_brasil via .map() com dicionário e nivel_gravidade_rotulo via np.select().
+
+Dummies e exportação: uso de get_dummies com drop_first=True para modelos matemáticos e gravação da base tratada em formato Apache Parquet (acidentes_tratados.parquet).
+
+Relatório das etapas de tratamento
