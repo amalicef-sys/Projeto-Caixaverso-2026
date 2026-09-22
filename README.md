@@ -1,14 +1,9 @@
 \# Dados
 
-
-
 A base utilizada neste projeto é a base de acidentes de trânsito nas rodovias federais brasileiras, disponibilizada pela Polícia Rodoviária Federal (PRF).
 
 
-
 \## Base utilizada
-
-
 
 \- Ano: 2025
 
@@ -18,56 +13,27 @@ A base utilizada neste projeto é a base de acidentes de trânsito nas rodovias 
 
 \- Fonte: Dados Abertos da Polícia Rodoviária Federal
 
-
-
 A base original não será armazenada neste repositório. Para reproduzir as análises, é necessário realizar o download da base diretamente na fonte oficial da PRF.
 
-
-
 Fonte oficial:
-
 https://www.gov.br/prf/pt-br/acesso-a-informacao/dados-abertos/dados-abertos-da-prf
 
 Download direto da base 2025: https://drive.google.com/file/d/1-G3MdmHBt6CprDwcW99xxC4BZ2DU5ryR/view?usp=sharing/download
 - Salve o arquivo descompactado como `datatrans2025.csv` dentro da pasta `dados/`. 
 
-
-
 Arquivo utilizado na análise:
-
-
-
 `datatran2025.csv`
-
 
 
 \## Perguntas de análise
 
-
-
 A partir da base de acidentes de trânsito nas rodovias federais brasileiras em 2025, definimos as seguintes perguntas que irão orientar nossa análise exploratória:
 
-
-
 1\. \*\*Quais estados concentram o maior número de acidentes nas rodovias federais em 2025?\*\*
-
-
-
 2\. \*\*Quais são os tipos de acidentes mais frequentes nas rodovias federais brasileiras?\*\*
-
-
-
 3\. \*\*Quais tipos de acidentes apresentam maior gravidade, considerando o número de mortos e feridos?\*\*
-
-
-
 4\. \*\*Quais condições meteorológicas estão associadas à maior ocorrência de acidentes?\*\*
-
-
-
 5\. \*\*Em quais meses e períodos do dia ocorre a maior concentração de acidentes?\*\*
-
-
 
 Essas perguntas foram definidas antes do início da análise dos dados e servirão como base para as etapas de diagnóstico, tratamento, transformação e análise exploratória da base.
 
@@ -102,3 +68,18 @@ Engenharia de features e transformações: criação das variáveis faixa_horari
 Dummies e exportação: uso de get_dummies com drop_first=True para modelos matemáticos e gravação da base tratada em formato Apache Parquet (acidentes_tratados.parquet).
 
 Relatório das etapas de tratamento
+
+
+CONCLUSÕES
+
+Principais achados
+1.  A maior parte dos acidentes registrados ocorreu em condições e situações que envolvem o comportamento dos condutores, com destaque para causas como ausência de reação do condutor e reação tardia ou ineficiente. Esse resultado reforça a importância de ações preventivas voltadas à atenção e ao comportamento na condução.
+2.  Os acidentes apresentam concentração diferente entre os estados, com destaque para Minas Gerais, Santa Catarina e Paraná em número de registros. Essa distribuição pode auxiliar no direcionamento de ações de fiscalização, prevenção e educação no trânsito.
+3.  A ocorrência de acidentes varia ao longo do ano e entre os dias da semana, indicando que períodos específicos podem concentrar maior quantidade de registros. Essa informação pode contribuir para o planejamento de ações preventivas e de fiscalização em períodos de maior ocorrência.
+4.  A gravidade dos acidentes é heterogênea, havendo registros sem vítimas, com vítimas feridas e com vítimas fatais. Portanto, a quantidade de acidentes, isoladamente, não representa o impacto desses eventos sobre as pessoas.
+
+Limitações da análise:
+Os dados permitem identificar padrões e características dos acidentes registrados nas rodovias federais em 2025, mas não permitem afirmar, isoladamente, que determinado fator causou os acidentes. Também não é possível concluir que um estado ou período é necessariamente mais perigoso apenas pela quantidade de registros, pois seria necessário considerar fatores como fluxo de veículos, extensão da malha rodoviária e exposição ao risco.
+
+Próximos passos:
+Com mais tempo e dados complementares, seria interessante cruzar os acidentes com dados de fluxo de veículos, características das rodovias(pista simples ou dupla) e condições meteorológicas externas, permitindo uma avaliação mais completa dos fatores associados aos acidentes.
