@@ -36,7 +36,7 @@ A partir da base de acidentes de trânsito nas rodovias federais brasileiras em 
 
 ---
 
-## DIAGNÓSTICO:
+## Diagnóstico
 
 **Dimensões:** a base possui 72.529 registros e 30 variáveis.
 
@@ -54,7 +54,7 @@ A partir da base de acidentes de trânsito nas rodovias federais brasileiras em 
 
 ---
 
-## LIMPEZA E TRATAMENTO:
+## Limpeza e tratamento
 
 **Tratamento e tipagem:** substituição de vírgula por ponto nas colunas km, latitude e longitude para conversão de string para float64, e  data_inversa de string para datetime64.
 
@@ -70,7 +70,7 @@ A partir da base de acidentes de trânsito nas rodovias federais brasileiras em 
 
 ---
 
-## CONCLUSÕES
+## Conclusões
 ### Resumo
 1. *Minas Gerais é o estado que concentrou mais acidentes(9.570) em 2025, seguido por Santa Catarina (8.186) e Paraná (7.630). Juntos, concentraram 35% dos acidentes.*
 2. *Os tipos de acidentes mais frequentes são colisão traseira (14.360), saída de leito carroçável (10.209) e colisão transversal (9.306) foram os mais frequentes, somando 46,7% dos registros.*
@@ -84,8 +84,8 @@ A partir da base de acidentes de trânsito nas rodovias federais brasileiras em 
 3.  A ocorrência de acidentes varia ao longo do ano e entre os dias da semana, indicando que períodos específicos podem concentrar maior quantidade de registros. Essa informação pode contribuir para o planejamento de ações preventivas e de fiscalização em períodos de maior ocorrência.
 4.  A gravidade dos acidentes é heterogênea, havendo registros sem vítimas, com vítimas feridas e com vítimas fatais. Portanto, a quantidade de acidentes, isoladamente, não representa o impacto desses eventos sobre as pessoas.
 
-## Limitações da análise:
+## Limitações da análise
 Os dados permitem identificar padrões e características dos acidentes registrados nas rodovias federais em 2025, mas não permitem afirmar, isoladamente, que determinado fator causou os acidentes. Também não é possível concluir que um estado ou período é necessariamente mais perigoso apenas pela quantidade de registros, pois seria necessário considerar fatores como fluxo de veículos, extensão da malha rodoviária e exposição ao risco.
 
-## Próximos passos:
+## Próximos passos
 Com mais tempo e dados complementares, seria interessante cruzar os acidentes com dados de fluxo de veículos, características das rodovias(pista simples ou dupla) e condições meteorológicas externas, permitindo uma avaliação mais completa dos fatores associados aos acidentes.
