@@ -1,0 +1,17 @@
+# Base de dados local
+dados/*.csv
+
+# Python
+__pycache__/
+*.pyc
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Ambientes virtuais
+.venv/
+venv/
+
+# Arquivos temporários
+*.tmp
+*.log
